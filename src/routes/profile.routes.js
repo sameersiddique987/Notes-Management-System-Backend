@@ -16,34 +16,39 @@ router.get("/", verifyToken, async (req, res) => {
   }
 });
 
-// Update Profile
 router.patch(
   "/",
   verifyToken,
   upload.single("profilePicture"),
   async (req, res) => {
     try {
-      console.log("Update profile request body:", req.body);
-      console.log("Update profile uploaded file:", req.file);
-      console.log("User document before update:", req.user);
+      console.log("🔐 req.user from middleware:", req.user);
 
-      const { name, phoneNumber } = req.body;
-      if (name) req.user.name = name;
-      if (phoneNumber) req.user.phoneNumber = phoneNumber;
-      if (req.file) {
-        req.user.profilePicture = req.file.path.replace(/\\/g, "/");
+      // Fetch the full user from DB to get Mongoose document
+      const user = await User.findById(req.user._id);
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
       }
 
-      await req.user.save();
+      const { name, phoneNumber } = req.body;
 
-      console.log("User document after save:", req.user);
+      if (name) user.name = name;
+      if (phoneNumber) user.phoneNumber = phoneNumber;
+      if (req.file) {
+        user.profilePicture = req.file.path.replace(/\\/g, "/");
+      }
+
+      await user.save();
+
+      console.log("✅ Updated User:", user);
 
       res.json({
         message: "Profile updated",
-        profilePicture: req.user.profilePicture,
+        profilePicture: user.profilePicture,
       });
     } catch (err) {
-      console.error("Error updating profile:", err);
+      console.error("❌ Error updating profile:", err);
       res.status(500).json({ message: "Failed to update profile" });
     }
   }
