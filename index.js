@@ -7,7 +7,7 @@ import noteRoutes from './src/routes/note.routes.js';
 import profileRoutes from './src/routes/profile.routes.js';
 import http from 'http';
 import { Server } from 'socket.io';
-import configureSocket from './src/socket.js';
+import configureSocket from './src/configureSocket.js';
 
 dotenv.config();
 
@@ -20,13 +20,12 @@ const allowedOrigins = [
   'https://notes-management-system-green.vercel.app',
 ];
 
-// ✅ CORS Middleware
+// ✅ CORS Middleware for Express
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.error(`❌ CORS blocked origin: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -35,40 +34,37 @@ app.use(cors({
 
 // ✅ Express Middleware
 app.use(express.json());
-app.use('/uploads', express.static('uploads'));
 
-// ✅ MongoDB Connection
+
+// ✅ MongoDB
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('✅ MongoDB connected'))
   .catch((err) => console.error('❌ MongoDB connection error:', err));
 
-// ✅ Routes
-app.get('/', (req, res) => {
-  res.send('📡 Notes Management API is running...');
-});
-
+// ✅ API Routes
+app.get('/', (req, res) => res.send('📡 Notes Management API is running...'));
 app.get('/health', (req, res) => {
   const isConnected = mongoose.connection.readyState === 1;
   res.status(isConnected ? 200 : 500).send({ mongo: isConnected });
 });
-
 app.use('/api/auth', authRoutes);
 app.use('/api/notes', noteRoutes);
 app.use('/api/profile', profileRoutes);
 
-// ✅ Socket.io Setup
+// ✅ Socket.IO with CORS
 const io = new Server(server, {
   cors: {
     origin: allowedOrigins,
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    methods: ['GET', 'POST'],
   },
 });
 
+// ✅ Socket Setup
 const onlineUsers = new Map();
 configureSocket(io, onlineUsers);
 
-// ✅ Make io and users available to routes/controllers
+// ✅ Attach io and onlineUsers to app
 app.set('io', io);
 app.set('onlineUsers', onlineUsers);
 
